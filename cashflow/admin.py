@@ -5,7 +5,7 @@ from . import models
 
 @admin.register(models.Runner)
 class RunnerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email']
+    list_display = ['full_name', 'email']
 
 
 @admin.register(models.Opening)

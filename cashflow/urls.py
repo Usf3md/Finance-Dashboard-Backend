@@ -1,9 +1,13 @@
-from django.urls import path
+from rest_framework import routers
 from . import views
 
-urlpatterns = [
-    path("openings/",  views.opening_list),
-    path("openings/<int:pk>/",  views.opening),
-    path("transactions/",  views.transaction_list),
-    path("transactions/<int:pk>/",  views.transaction),
-]
+router = routers.DefaultRouter()
+router.register('openings', views.OpeningViewSet, basename='openings')
+router.register('transactions', views.TransactionViewSet,
+                basename='transactions')
+router.register('transaction-details',
+                views.TransactionDetailViewSet, basename='transaction-details')
+router.register('runners',
+                views.RunnerViewSet, basename='runners')
+
+urlpatterns = router.urls
