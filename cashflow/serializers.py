@@ -20,8 +20,8 @@ class RunnerSerializer(serializers.ModelSerializer):
 
 
 class MakerRunnerSerializer(RunnerSerializer):
-    role = None
     user = None
+    role = None
 
 
 class OpeningSerializer(serializers.ModelSerializer):
@@ -46,21 +46,28 @@ class TransactionSerializer(serializers.ModelSerializer):
     transaction_status = serializers.CharField(read_only=True)
     revisor = RunnerSerializer(read_only=True)
 
+    def to_internal_value(self, data):
+        for key in data:
+            if data[key] == '':
+                data[key] = None
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         if attrs['amount'] < 0:
             raise serializers.ValidationError("Amount can't be negative.")
         return super().validate(attrs)
+
+    def create(self, validated_data):
+        runner = Runner.objects.get(user_id=self.context['user_id'])
+        transaction_status = TRANSACTION_STATUS.PENDING if runner.role == ROLES.CHECKER else TRANSACTION_STATUS.APPROVED
+        revisor = None if runner.role == ROLES.CHECKER else runner
+        transaction = Transaction(
+            runner_id=runner.id, transaction_status=transaction_status, revisor=revisor, **validated_data)
+        transaction.save()
+        return transaction
 
 
 class TransactionCUDSerializer(TransactionSerializer):
     transaction_detail = serializers.PrimaryKeyRelatedField(
         queryset=TransactionDetail.objects.all()
     )
-
-    def create(self, validated_data):
-        runner = Runner.objects.get(user_id=self.context['user_id'])
-        transaction_status = TRANSACTION_STATUS.PENDING if runner.role == ROLES.CHECKER else TRANSACTION_STATUS.APPROVED
-        transaction = Transaction(
-            runner_id=runner.id, transaction_status=transaction_status, **validated_data)
-        transaction.save()
-        return transaction

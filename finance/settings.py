@@ -43,13 +43,14 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework',
     'djoser',
-    'playground',
     "debug_toolbar",
+    'playground',
     'cashflow',
     'core',
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -66,6 +67,7 @@ INTERNAL_IPS = [
     "127.0.0.1",
     # ...
 ]
+
 
 ROOT_URLCONF = 'finance.urls'
 
