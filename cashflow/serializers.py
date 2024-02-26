@@ -47,9 +47,12 @@ class TransactionSerializer(serializers.ModelSerializer):
     revisor = RunnerSerializer(read_only=True)
 
     def to_internal_value(self, data):
-        for key in data:
-            if data[key] == '':
-                data[key] = None
+        try:
+            for key in data:
+                if data[key] == '':
+                    data[key] = None
+        except:
+            pass
         return super().to_internal_value(data)
 
     def validate(self, attrs):
