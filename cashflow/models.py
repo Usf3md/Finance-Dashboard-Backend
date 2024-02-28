@@ -3,27 +3,29 @@ from django.conf import settings
 from django.contrib import admin
 
 
-class ROLES:
-    MAKER = 'm'
-    CHECKER = 'c'
-
-
 class TRANSACTION_STATUS:
-    PENDING = 'p'
-    APPROVED = 'a'
-    REJECTED = 'r'
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+
+
+class ROLES:
+    MAKER = 'maker'
+    CHECKER = 'checker'
+
+
+class RunnerRole(models.Model):
+    role = models.CharField(max_length=128)
+
+    def __str__(self) -> str:
+        return self.role
 
 
 class Runner(models.Model):
-    ROLES_CHOICES = [
-        (ROLES.MAKER, 'Maker'),
-        (ROLES.CHECKER, 'Checker'),
-    ]
-
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
-    role = models.CharField(max_length=1, choices=ROLES_CHOICES)
+    role = models.ForeignKey(RunnerRole, on_delete=models.RESTRICT)
 
     @admin.display(ordering='user__full_name')
     def full_name(self):
@@ -61,15 +63,17 @@ class TransactionDetail(models.Model):
         ordering = ['detail']
 
 
+class TransactionStatus(models.Model):
+    status = models.CharField(max_length=128)
+
+    def __str__(self) -> str:
+        return self.status
+
+
 class Transaction(models.Model):
     TRANSACTION_TYPES = [
         (True, 'Cash in'),
         (False, 'Cash out')
-    ]
-    TRANSACTION_STATUS_CHOICES = [
-        (TRANSACTION_STATUS.REJECTED, 'Rejected'),
-        (TRANSACTION_STATUS.APPROVED, 'Approved'),
-        (TRANSACTION_STATUS.PENDING, 'Pending'),
     ]
     opening = models.ForeignKey(Opening, on_delete=models.CASCADE)
     runner = models.ForeignKey(Runner, on_delete=models.SET_NULL, null=True)
@@ -80,8 +84,9 @@ class Transaction(models.Model):
     note = models.TextField(null=True)
     date = models.DateTimeField(auto_now=True)
     image = models.CharField(max_length=512, null=True)
-    transaction_status = models.CharField(
-        max_length=1, choices=TRANSACTION_STATUS_CHOICES)
+    transaction_status = models.ForeignKey(
+        TransactionStatus, on_delete=models.RESTRICT)
+    created_at = models.DateTimeField(auto_now_add=True)
     revisor = models.ForeignKey(
         Runner, on_delete=models.SET_NULL, null=True, related_name='revisions')
 

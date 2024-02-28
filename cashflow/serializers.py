@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from rest_framework import serializers
-from cashflow.models import ROLES, TRANSACTION_STATUS, Opening, Runner, Transaction, TransactionDetail
-from cashflow.permissions import IsMaker
+from cashflow.models import ROLES, TRANSACTION_STATUS, Opening, Runner, RunnerRole, Transaction, TransactionDetail, TransactionStatus
+
+
+MODIFY_TIME_LIMIT = timedelta(minutes=5)
 
 
 class RunnerSerializer(serializers.ModelSerializer):
@@ -16,12 +19,22 @@ class RunnerSerializer(serializers.ModelSerializer):
 
     user = serializers.PrimaryKeyRelatedField(read_only=True)
 
-    role = serializers.CharField(read_only=True)
+    role = serializers.StringRelatedField(read_only=True)
 
 
-class MakerRunnerSerializer(RunnerSerializer):
+class MakerRunnerSerializerReadOnly(RunnerSerializer):
+    user = None
+
+
+class MakerRunnerSerializerReadWrite(MakerRunnerSerializerReadOnly):
     user = None
     role = None
+
+
+class RunnerRoleSerializer(serializers.Serializer):
+    class Meta:
+        model = RunnerRole
+        fields = ['id', 'label']
 
 
 class OpeningSerializer(serializers.ModelSerializer):
@@ -40,11 +53,22 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = ['id', 'opening', 'runner', 'amount', 'transaction_type',
-                  'transaction_detail', 'transaction_status', 'revisor', 'note', 'date', 'image']
+                  'transaction_detail', 'transaction_status', 'revisor', 'note', 'date', 'image', 'remaining_time']
     runner = RunnerSerializer(read_only=True)
-    transaction_detail = serializers.StringRelatedField(read_only=True)
-    transaction_status = serializers.CharField(read_only=True)
+    transaction_detail = serializers.StringRelatedField()
+    transaction_status = serializers.StringRelatedField()
     revisor = RunnerSerializer(read_only=True)
+    remaining_time = serializers.SerializerMethodField(
+        method_name='calculate_remaining_time')
+
+    def calculate_remaining_time(self, transaction: Transaction):
+        current_time = datetime.now().astimezone(timezone.utc).replace(tzinfo=None)
+        stored_time = transaction.created_at.astimezone(
+            timezone.utc).replace(tzinfo=None)
+        diff = current_time - stored_time
+        if diff > MODIFY_TIME_LIMIT:
+            return 0
+        return int((MODIFY_TIME_LIMIT - diff).seconds)
 
     def to_internal_value(self, data):
         try:
@@ -61,9 +85,12 @@ class TransactionSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
 
     def create(self, validated_data):
-        runner = Runner.objects.get(user_id=self.context['user_id'])
-        transaction_status = TRANSACTION_STATUS.PENDING if runner.role == ROLES.CHECKER else TRANSACTION_STATUS.APPROVED
-        revisor = None if runner.role == ROLES.CHECKER else runner
+        runner = Runner.objects.select_related(
+            'role').get(user_id=self.context['user_id'])
+        runner_role = runner.role.role
+        status = TRANSACTION_STATUS.APPROVED if runner_role == ROLES.CHECKER else TRANSACTION_STATUS.PENDING
+        transaction_status = TransactionStatus.objects.get(status=status)
+        revisor = runner if runner_role == ROLES.CHECKER else None
         transaction = Transaction(
             runner_id=runner.id, transaction_status=transaction_status, revisor=revisor, **validated_data)
         transaction.save()

@@ -21,3 +21,13 @@ class TransactionAdmin(admin.ModelAdmin):
 @admin.register(models.TransactionDetail)
 class TransactionDetailAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(models.RunnerRole)
+class RunnerRoleAdmin(admin.ModelAdmin):
+    list_display = ['role']
+
+
+@admin.register(models.TransactionStatus)
+class TransactionStatusAdmin(admin.ModelAdmin):
+    list_display = ['status']
