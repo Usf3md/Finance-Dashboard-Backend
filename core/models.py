@@ -22,6 +22,7 @@ class Account(AbstractUser):
     full_name = models.CharField(max_length=150)
     email = models.EmailField(max_length=255, unique=True)
     username = None
+    is_control = models.BooleanField(default=False)
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['full_name']
+    REQUIRED_FIELDS = ['full_name', 'is_control']
     objects = AccountUserManager()

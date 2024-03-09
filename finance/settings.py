@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'djoser',
     "debug_toolbar",
     'cashflow',
+    'attendance',
     'core',
 ]
 
