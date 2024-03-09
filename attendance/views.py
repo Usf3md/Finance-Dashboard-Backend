@@ -1,6 +1,7 @@
 from datetime import datetime, date, timedelta
 from django.db.models import Prefetch
 from django.core.exceptions import ObjectDoesNotExist
+import pytz
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS
@@ -114,7 +115,8 @@ class AttendanceViewSet(ModelViewSet):
             return Response({'detail': 'New Shift Exists.'}, status=status.HTTP_410_GONE)
 
         if latest_attendance.start_datetime and not latest_attendance.end_datetime:
-            diff = (datetime.now() - latest_attendance.start_datetime)
+            diff = (datetime.now().astimezone(pytz.utc) -
+                    latest_attendance.start_datetime.astimezone(pytz.utc))
             if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
                 return Response({'detail': 'Shift Reached Duration Limit.'}, status=status.HTTP_410_GONE)
 
@@ -138,7 +140,7 @@ class AttendanceViewSet(ModelViewSet):
         if attendance.end_datetime:
             return Response({'detail': 'This Shift Has Ended.'}, status=status.HTTP_410_GONE)
 
-        attendance.start_datetime = datetime.now()
+        attendance.start_datetime = datetime.now().astimezone(pytz.utc)
         attendance.save()
 
         serializer = AttendanceSerializer(attendance)
@@ -155,7 +157,8 @@ class AttendanceViewSet(ModelViewSet):
             return Response({'detail': 'You Don\'t Have Any Attendances To End.'}, status=status.HTTP_404_NOT_FOUND)
 
         if latest_attendance.start_datetime and not latest_attendance.end_datetime:
-            diff = (datetime.now() - latest_attendance.start_datetime)
+            diff = (datetime.now().astimezone(pytz.utc) -
+                    latest_attendance.start_datetime.astimezone(pytz.utc))
             if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
                 return Response({'detail': 'Shift Reached Duration Limit.'}, status=status.HTTP_410_GONE)
 
@@ -174,7 +177,7 @@ class AttendanceViewSet(ModelViewSet):
         if attendance.end_datetime != None:
             return Response({'detail': 'You Already Ended This Shift.'}, status=status.HTTP_403_FORBIDDEN)
 
-        attendance.end_datetime = datetime.now()
+        attendance.end_datetime = datetime.now().astimezone(pytz.utc)
         attendance.save()
 
         serializer = AttendanceSerializer(attendance)

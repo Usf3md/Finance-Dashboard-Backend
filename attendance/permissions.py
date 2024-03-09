@@ -7,14 +7,20 @@ from core.models import Account
 
 class IsMember(BasePermission):
     def has_permission(self, request, view):
-        member = get_object_or_404(Member, user_id=request.user.id)
-        return bool(member)
+        try:
+            member = Member.objects.get(user_id=request.user.id)
+            return bool(member)
+        except Member.DoesNotExist:
+            return False
 
 
 class IsControl(BasePermission):
     def has_permission(self, request, view):
-        account = get_object_or_404(Account, id=request.user.id)
-        return account and account.is_control
+        try:
+            account = Account.objects.get(id=request.user.id)
+            return account.is_control
+        except Account.DoesNotExist:
+            return False
 
 
 class IsControlOrAdmin(BasePermission):

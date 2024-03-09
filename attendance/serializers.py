@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import pytz
 from rest_framework import serializers
 from .models import Attendance, AttendanceDay, Member, MemberJob, Shift, ShiftDuration
 
@@ -159,7 +160,8 @@ class FullMemberSerializer(MemberSerializer):
         for attendance in months_attendances:
             duration = attendance.shift_duration.duration.seconds
             if attendance.end_datetime == None:
-                diff = (datetime.now() - attendance.start_datetime)
+                diff = (datetime.now().astimezone(pytz.utc)
+                        - attendance.start_datetime.astimezone(pytz.utc))
                 if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
                     diff = timedelta(seconds=duration / 2)
                 total_duration += diff.total_seconds()
