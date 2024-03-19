@@ -58,7 +58,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = ['id', 'member', 'current_date',
-                  'start_datetime', 'end_datetime', 'is_dayoff', 'shift', 'shift_duration']
+                  'start_datetime', 'end_datetime', 'is_dayoff', 'shift', 'shift_duration', 'local_ip']
 
     shift = ShiftSerializer()
     shift_duration = serializers.SlugRelatedField(

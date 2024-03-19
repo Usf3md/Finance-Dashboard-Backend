@@ -74,9 +74,11 @@ class Attendance(models.Model):
     start_datetime = models.DateTimeField(null=True)
     end_datetime = models.DateTimeField(null=True)
     is_dayoff = models.BooleanField(default=False)
+    local_ip = models.CharField(max_length=64)
 
     class Meta:
         unique_together = ('member', 'current_date')
+        unique_together = ('local_ip', 'current_date')
 
     def __str__(self) -> str:
         return self.member.user.full_name + f" ({self.current_date.day.strftime('%A, %B %d, %Y')})"

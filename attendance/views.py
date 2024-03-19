@@ -105,9 +105,10 @@ class AttendanceViewSet(ModelViewSet):
     @action(detail=False, permission_classes=[IsMemberOrControlOrAdmin])
     def latest(self, request):
         member = Member.objects.get(user_id=request.user.id)
-        latest_attendance = member.attendance_set.select_related(
-            'current_date').latest('current_date__day')
-        if not latest_attendance:
+        try:
+            latest_attendance = member.attendance_set.select_related(
+                'current_date').latest('current_date__day')
+        except Attendance.DoesNotExist:
             return Response({'detail': 'You Don\'t Have Any Attendances.'}, status=status.HTTP_404_NOT_FOUND)
 
         date = datetime.now().date()
@@ -125,14 +126,16 @@ class AttendanceViewSet(ModelViewSet):
 
     @action(detail=False, methods=['POST'], permission_classes=[IsMemberOrControlOrAdmin])
     def start(self, request):
-        member = Member.objects.get(user_id=request.user.id)
+        if not request.data.get('local_ip', None):
+            return Response({'detail': 'Ip Address Was Not Provided.'}, status=status.HTTP_403_FORBIDDEN)
 
+        member = Member.objects.get(user_id=request.user.id)
         date = datetime.now().date()
 
         (current_date, day_created) = AttendanceDay.objects.get_or_create(
             day=date)
         (attendance, attendance_created) = Attendance.objects.filter(
-            current_date_id=current_date.pk).get_or_create(member_id=member.pk, current_date=current_date, shift=member.shift, shift_duration=member.shift_duration, is_dayoff=(not isWorkDay(member.shift, date.strftime('%A'))))
+            current_date_id=current_date.pk).get_or_create(member_id=member.pk, current_date=current_date, shift=member.shift, shift_duration=member.shift_duration, local_ip=request.data['local_ip'], is_dayoff=(not isWorkDay(member.shift, date.strftime('%A'))))
 
         if attendance.start_datetime:
             return Response({'detail': 'You Already Started This Shift.'}, status=status.HTTP_403_FORBIDDEN)
