@@ -111,15 +111,10 @@ class AttendanceViewSet(ModelViewSet):
         except Attendance.DoesNotExist:
             return Response({'detail': 'You Don\'t Have Any Attendances.'}, status=status.HTTP_404_NOT_FOUND)
 
-        date = datetime.now().date()
-        if date != latest_attendance.current_date.day:
-            return Response({'detail': 'New Shift Exists.'}, status=status.HTTP_410_GONE)
-
-        if latest_attendance.start_datetime and not latest_attendance.end_datetime:
-            diff = (datetime.now().astimezone(pytz.utc) -
-                    latest_attendance.start_datetime.astimezone(pytz.utc))
-            if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
-                return Response({'detail': 'Shift Reached Duration Limit.'}, status=status.HTTP_410_GONE)
+        diff = (datetime.now().astimezone(pytz.utc) -
+                latest_attendance.start_datetime.astimezone(pytz.utc))
+        if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
+            return Response({'detail': 'Shift Reached Duration Limit.'}, status=status.HTTP_410_GONE)
 
         serializer = AttendanceSerializer(latest_attendance)
         return Response(serializer.data)
