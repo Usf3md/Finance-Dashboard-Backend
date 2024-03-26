@@ -157,28 +157,28 @@ class AttendanceViewSet(ModelViewSet):
         if latest_attendance.start_datetime and not latest_attendance.end_datetime:
             diff = (datetime.now().astimezone(pytz.utc) -
                     latest_attendance.start_datetime.astimezone(pytz.utc))
-            if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
+            if diff > timedelta(seconds=SHIFT_DURATION_LIMIT):
                 return Response({'detail': 'Shift Reached Duration Limit.'}, status=status.HTTP_410_GONE)
 
-        current_date = datetime.now().date()
-        try:
-            current_date = AttendanceDay.objects.get(
-                day=current_date)
-            attendance = Attendance.objects.filter(
-                current_date_id=current_date.pk).get(member_id=member.pk, current_date=current_date)
-        except ObjectDoesNotExist:
+        # current_date = datetime.now().date()
+        # try:
+        #     current_date = AttendanceDay.objects.get(
+        #         day=current_date)
+        #     attendance = Attendance.objects.filter(
+        #         current_date_id=current_date.pk).get(member_id=member.pk, current_date=current_date)
+        # except ObjectDoesNotExist:
+        #     return Response({'detail': 'Please Start Your Attendance First.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if latest_attendance.start_datetime == None:
             return Response({'detail': 'Please Start Your Attendance First.'}, status=status.HTTP_403_FORBIDDEN)
 
-        if attendance.start_datetime == None:
-            return Response({'detail': 'Please Start Your Attendance First.'}, status=status.HTTP_403_FORBIDDEN)
-
-        if attendance.end_datetime != None:
+        if latest_attendance.end_datetime != None:
             return Response({'detail': 'You Already Ended This Shift.'}, status=status.HTTP_403_FORBIDDEN)
 
-        attendance.end_datetime = datetime.now().astimezone(pytz.utc)
-        attendance.save()
+        latest_attendance.end_datetime = datetime.now().astimezone(pytz.utc)
+        latest_attendance.save()
 
-        serializer = AttendanceSerializer(attendance)
+        serializer = AttendanceSerializer(latest_attendance)
         return Response(serializer.data)
 
 
