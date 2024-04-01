@@ -1,4 +1,5 @@
 from datetime import datetime, date, timedelta
+from typing import Any
 from django.db.models import Prefetch
 from django.core.exceptions import ObjectDoesNotExist
 import pytz
@@ -15,6 +16,16 @@ from .serializers import SHIFT_DURATION_LIMIT
 
 
 class MemberViewSet(ModelViewSet):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        current_datetime = datetime.now()
+        current_month = current_datetime.month
+        current_year = current_datetime.year
+        self.start_of_month = date(
+            current_datetime.year, current_datetime.month, 1)
+        self.end_of_month = date(
+            current_year, current_month + 1, 1) - timedelta(days=1)
+
     permission_classes = [IsMemberOrControlOrAdmin]
 
     def get_queryset(self):
@@ -25,58 +36,44 @@ class MemberViewSet(ModelViewSet):
             attendance_queryset = Attendance.objects.select_related(
                 'current_date').all()
             min_date = self.request.query_params.get('min_date')
-            min_date = min_date if min_date else None
-            if min_date != None:
-                try:
-                    min_date = date.fromisoformat(min_date)
-                    attendance_queryset = attendance_queryset.filter(
-                        current_date__day__gte=min_date)
-                except ValueError:
-                    min_date = None
-                    pass
+            min_date = min_date if min_date else self.start_of_month.isoformat()
+
+            try:
+                min_date = date.fromisoformat(min_date)
+            except ValueError:
+                min_date = self.start_of_month
+
+            attendance_queryset = attendance_queryset.filter(
+                current_date__day__gte=min_date)
             max_date = self.request.query_params.get('max_date')
-            max_date = max_date if max_date else None
-            if max_date != None:
-                try:
-                    max_date = date.fromisoformat(max_date)
-                    attendance_queryset = attendance_queryset.filter(
-                        current_date__day__lte=max_date)
-                except ValueError:
-                    max_date = None
-                    pass
+            max_date = max_date if max_date else self.end_of_month.isoformat()
+
+            try:
+                max_date = date.fromisoformat(max_date)
+            except ValueError:
+                max_date = self.end_of_month
+
+            attendance_queryset = attendance_queryset.filter(
+                current_date__day__lte=max_date)
+
             return queryset.prefetch_related(Prefetch('attendance_set', queryset=attendance_queryset))
         return queryset.filter(user_id=self.request.user.id)
 
     def get_serializer_context(self):
         min_date = self.request.query_params.get('min_date')
-        min_date = min_date if min_date else None
-        if min_date != None:
-            try:
-                min_date = date.fromisoformat(min_date)
-            except ValueError:
-                min_date = None
-                pass
+        min_date = min_date if min_date else self.start_of_month.isoformat()
+        try:
+            min_date = date.fromisoformat(min_date)
+        except ValueError:
+            min_date = self.start_of_month
 
         max_date = self.request.query_params.get('max_date')
-        max_date = max_date if max_date else None
-        if max_date != None:
-            try:
-                max_date = date.fromisoformat(max_date)
-            except ValueError:
-                max_date = None
-                pass
+        max_date = max_date if max_date else self.end_of_month.isoformat()
+        try:
+            max_date = date.fromisoformat(max_date)
+        except ValueError:
+            max_date = self.end_of_month
 
-        if not min_date or not max_date:
-            current_datetime = datetime.now()
-            current_month = current_datetime.month
-            current_year = current_datetime.year
-            start_of_month = datetime(current_year, current_month, 1)
-            end_of_month = datetime(
-                current_year, current_month + 1, 1) - timedelta(days=1)
-            return {
-                'min_date': start_of_month,
-                'max_date': end_of_month
-            }
         return {
             'min_date': min_date,
             'max_date': max_date
