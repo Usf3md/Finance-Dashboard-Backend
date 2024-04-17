@@ -106,7 +106,7 @@ class FullMemberSerializer(MemberSerializer):
     class Meta:
         model = Member
         fields = ['id', 'user', 'full_name', 'email',
-                  'is_admin', 'job', 'shift', 'shift_duration', 'attendance_set', 'total_work_time', 'attended_time', 'attended_days',]
+                  'is_admin', 'job', 'shift', 'shift_duration', 'attendance_set', 'total_work_time', 'attended_work_time', 'attended_dayoff_time', 'attended_work_days', 'attended_dayoff_days', 'attended_overtime']
         # 'day_offs', 'vacations']
 
     shift_duration = serializers.SerializerMethodField(
@@ -126,10 +126,19 @@ class FullMemberSerializer(MemberSerializer):
     total_work_time = serializers.SerializerMethodField(
         method_name='cacluate_total_work_time')
 
-    attended_time = serializers.SerializerMethodField(
-        method_name='cacluate_attended_time')
-    attended_days = serializers.SerializerMethodField(
-        method_name='cacluate_attended_days')
+    attended_work_time = serializers.SerializerMethodField(
+        method_name='cacluate_attended_work_time')
+
+    attended_overtime = serializers.SerializerMethodField(
+        method_name='cacluate_attended_overtime')
+
+    attended_dayoff_time = serializers.SerializerMethodField(
+        method_name='cacluate_attended_dayoff_time')
+
+    attended_work_days = serializers.SerializerMethodField(
+        method_name='cacluate_attended_work_days')
+    attended_dayoff_days = serializers.SerializerMethodField(
+        method_name='cacluate_attended_dayoff_days')
     # day_offs = serializers.SerializerMethodField(
     #     method_name='cacluate_day_offs')
     # vacations = serializers.SerializerMethodField(
@@ -153,9 +162,9 @@ class FullMemberSerializer(MemberSerializer):
                 vacations_count += 1
         return int(total_duration - vacations_count * duration)
 
-    def cacluate_attended_time(self, member: Member):
+    def cacluate_attended_work_time(self, member: Member):
         months_attendances = member.attendance_set.select_related('current_date').select_related('shift_duration').filter(
-            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'])
+            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'], is_dayoff=False)
         total_duration = 0
         for attendance in months_attendances:
             duration = attendance.shift_duration.duration.seconds
@@ -170,9 +179,49 @@ class FullMemberSerializer(MemberSerializer):
                                    attendance.start_datetime).total_seconds()
         return int(total_duration)
 
-    def cacluate_attended_days(self, member: Member):
+    def cacluate_attended_overtime(self, member: Member):
+        months_attendances = member.attendance_set.select_related('current_date').select_related('shift_duration').filter(
+            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'], is_dayoff=False)
+        total_overtime = 0
+        for attendance in months_attendances:
+            duration = attendance.shift_duration.duration.seconds
+            attended_time = 0
+            if attendance.end_datetime == None:
+                diff = (datetime.now().astimezone(pytz.utc)
+                        - attendance.start_datetime.astimezone(pytz.utc))
+                if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
+                    diff = timedelta(seconds=duration / 2)
+                attended_time = diff.seconds
+            else:
+                attended_time = (attendance.end_datetime -
+                                 attendance.start_datetime).total_seconds()
+            total_overtime += (attended_time - duration)
+        return int(total_overtime)
+
+    def cacluate_attended_dayoff_time(self, member: Member):
+        months_attendances = member.attendance_set.select_related('current_date').select_related('shift_duration').filter(
+            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'], is_dayoff=True)
+        total_duration = 0
+        for attendance in months_attendances:
+            duration = attendance.shift_duration.duration.seconds
+            if attendance.end_datetime == None:
+                diff = (datetime.now().astimezone(pytz.utc)
+                        - attendance.start_datetime.astimezone(pytz.utc))
+                if diff >= timedelta(seconds=SHIFT_DURATION_LIMIT):
+                    diff = timedelta(seconds=duration / 2)
+                total_duration += diff.total_seconds()
+            else:
+                total_duration += (attendance.end_datetime -
+                                   attendance.start_datetime).total_seconds()
+        return int(total_duration)
+
+    def cacluate_attended_work_days(self, member: Member):
         return member.attendance_set.select_related('current_date').filter(
-            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date']).count()
+            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'], is_dayoff=False).count()
+
+    def cacluate_attended_dayoff_days(self, member: Member):
+        return member.attendance_set.select_related('current_date').filter(
+            current_date__day__gte=self.context['min_date'], current_date__day__lte=self.context['max_date'], is_dayoff=True).count()
 
     # def cacluate_day_offs(self, member: Member):
     #     day_offs_count = member.attendance_set.select_related('current_date').filter(
